@@ -117,7 +117,6 @@ static NSString *kInfoHeaders = @"headers";
         UICollectionViewLayoutAttributes *headerAttributes =
         [DMTableCollectionViewLayoutAttributes layoutAttributesForSupplementaryViewOfKind:@"UICollectionReusableView" withIndexPath:indexPath];
         headerAttributes.frame = [self frameForHeaderAtIndexPath:indexPath];
-        headerAttributes.transform = CGAffineTransformInvert(headerAttributes.transform);
         headerAttributes.zIndex = 1;
 
         headerLayoutInfo[indexPath] = headerAttributes;
@@ -133,6 +132,7 @@ static NSString *kInfoHeaders = @"headers";
       UICollectionViewLayoutAttributes *itemAttributes =
       [UICollectionViewLayoutAttributes layoutAttributesForCellWithIndexPath:indexPath];
       itemAttributes.frame = [self frameForCellAtIndexPath:indexPath];
+      itemAttributes.zIndex = 0;
 
       cellLayoutInfo[indexPath] = itemAttributes;
     }
@@ -149,6 +149,8 @@ static NSString *kInfoHeaders = @"headers";
       [self.rowsInfo removeAllObjects];
     }
   }
+
+  [super prepareLayout];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -171,10 +173,10 @@ static NSString *kInfoHeaders = @"headers";
 {
   if (CGSizeEqualToSize(viewContentSizeCache, CGSizeZero)) {
     NSInteger i = self.collectionView.numberOfSections-1;
-    NSInteger j = [self.collectionView numberOfItemsInSection:i];
+    NSInteger j = [self.collectionView numberOfItemsInSection:i] - 1;
     CGRect rect = [self frameForCellAtIndexPath:[NSIndexPath indexPathForItem:j inSection:i]];
     viewContentSizeCache.width = MAX(self.tableWidth, self.collectionView.frame.size.width);
-    viewContentSizeCache.height = rect.origin.y;
+    viewContentSizeCache.height = rect.origin.y + rect.size.height;
   }
   return viewContentSizeCache;
 }
@@ -266,7 +268,7 @@ static NSString *kInfoHeaders = @"headers";
 // @retrun array
 - (NSArray *)layoutAttributesForElementsInRect:(CGRect)rect
 {
-  NSMutableArray *allAttributes = [NSMutableArray arrayWithCapacity:self.layoutInfo.count];
+  NSMutableArray *allAttributes = [NSMutableArray array];
 
   // Prepare headers
   [self layoutHeadAttributesForElementsInRect:rect attributes:allAttributes];
@@ -291,9 +293,7 @@ static NSString *kInfoHeaders = @"headers";
     // Prepare borders
     [self.layoutInfo[kInfoHeaders] enumerateKeysAndObjectsUsingBlock:^(NSString *elementIdentifier, UICollectionViewLayoutAttributes *attributes, BOOL *stop) {
       // Update border position
-      if (self.isHeaderFixed) {
-        attributes.frame = [self frameForHeaderAtIndexPath:attributes.indexPath];
-      }
+      attributes.frame = [self frameForHeaderAtIndexPath:attributes.indexPath];
 
       // Check view position
       if (CGRectIntersectsRect(rect, attributes.frame)) {
@@ -347,6 +347,8 @@ static NSString *kInfoHeaders = @"headers";
   
   // Separators between items
   [self.layoutInfo[kInfoCells] enumerateKeysAndObjectsUsingBlock:^(NSString *elementIdentifier, UICollectionViewLayoutAttributes *attributes, BOOL *stop) {
+    attributes.frame = [self frameForCellAtIndexPath:attributes.indexPath];
+    
     if (CGRectIntersectsRect(rect, attributes.frame)) {
       [allAttributes addObject:attributes];
       
@@ -526,7 +528,7 @@ static NSString *kInfoHeaders = @"headers";
 
 - (CGFloat)borderPadding
 {
-  if ([self.collectionView.delegate respondsToSelector:@selector(collectionViewBorderWidth:)]) {
+  if ([self.collectionView.delegate respondsToSelector:@selector(collectionViewBorderPadding:)]) {
     return [(id<DMTableCollectionViewDataSource>)(self.collectionView.delegate) collectionViewBorderPadding:self.collectionView];
   }
   return 0.f;
@@ -561,8 +563,8 @@ static NSString *kInfoHeaders = @"headers";
 
 - (CGRect)frameForCellAtIndexPath:(NSIndexPath *)indexPath
 {
-  const NSInteger row = indexPath.row / self.numberOfColumns;
-  const NSInteger column = indexPath.row % self.numberOfColumns;
+  const NSInteger row = indexPath.item / self.numberOfColumns;
+  const NSInteger column = indexPath.item % self.numberOfColumns;
   CGSize size = {[self collectionViewColumnWidth:column], [self collectionViewRowHeight:row]};
   
   if (self.isStretch) {
@@ -582,7 +584,7 @@ static NSString *kInfoHeaders = @"headers";
 - (CGRect)frameForHeaderAtIndexPath:(NSIndexPath *)indexPath
 {
   const NSInteger column = indexPath.row % self.numberOfColumns;
-  CGSize size = {[self collectionViewColumnWidth:column], [self collectionViewRowHeight:0]};
+  CGSize size = {[self collectionViewColumnWidth:column], [self collectionViewSectionHeight:0]};
   
   if (self.isStretch) {
     size.width += MAX(0, (self.collectionView.frame.size.width - self.tableWidth)) / self.numberOfColumns;
