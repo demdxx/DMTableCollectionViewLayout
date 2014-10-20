@@ -174,7 +174,12 @@ static NSString *kInfoHeaders = @"headers";
   if (CGSizeEqualToSize(viewContentSizeCache, CGSizeZero)) {
     NSInteger i = self.collectionView.numberOfSections-1;
     NSInteger j = [self.collectionView numberOfItemsInSection:i] - 1;
-    CGRect rect = [self frameForCellAtIndexPath:[NSIndexPath indexPathForItem:j inSection:i]];
+    CGRect rect;
+    if (j >= 0) {
+      rect = [self frameForCellAtIndexPath:[NSIndexPath indexPathForItem:j inSection:i]];
+    } else {
+      rect = [self frameForHeaderAtIndexPath:[NSIndexPath indexPathForItem:self.numberOfColumns-1 inSection:i]];
+    }
     viewContentSizeCache.width = MAX(self.tableWidth, self.collectionView.frame.size.width);
     viewContentSizeCache.height = rect.origin.y + rect.size.height;
   }
@@ -544,16 +549,25 @@ static NSString *kInfoHeaders = @"headers";
 
 - (NSInteger)borderAtIndexPath:(NSIndexPath *)indexPath
 {
+  if ([self.collectionView.delegate respondsToSelector:@selector(collectionView:borderAtIndexPath:)]) {
+    return [(id<DMTableCollectionViewDataSource>)(self.collectionView.delegate) collectionView:self.collectionView borderAtIndexPath:indexPath];
+  }
   return kDMTableBorderAll;
 }
 
 - (NSInteger)headerBorderAtIndexPath:(NSIndexPath *)indexPath
 {
+  if ([self.collectionView.delegate respondsToSelector:@selector(collectionView:headerBorderAtIndexPath:)]) {
+    return [(id<DMTableCollectionViewDataSource>)(self.collectionView.delegate) collectionView:self.collectionView headerBorderAtIndexPath:indexPath];
+  }
   return kDMTableBorderAll;
 }
 
 - (NSInteger)tableBorder
 {
+  if ([self.collectionView.delegate respondsToSelector:@selector(collectionViewTableBorder:)]) {
+    return [(id<DMTableCollectionViewDataSource>)(self.collectionView.delegate) collectionViewTableBorder:self.collectionView];
+  }
   return kDMTableBorderAll;
 }
 
@@ -619,8 +633,8 @@ static NSString *kInfoHeaders = @"headers";
 
 - (BOOL)indexPathLastInSection:(NSIndexPath *)indexPath
 {
-  NSInteger lastItem = [self.collectionView.dataSource collectionView:self.collectionView numberOfItemsInSection:indexPath.section] - 1;
-  return  lastItem == indexPath.row;
+  const NSInteger columnsCount = self.numberOfColumns;
+  return columnsCount - 1 == indexPath.row % columnsCount;
 }
 
 - (BOOL)indexPathInLastLine:(NSIndexPath *)indexPath
@@ -640,7 +654,7 @@ static NSString *kInfoHeaders = @"headers";
   UICollectionViewLayoutAttributes *cellAttributes = [self layoutAttributesForItemAtIndexPath:indexPath];
   UICollectionViewLayoutAttributes *nextCellAttributes = [self layoutAttributesForItemAtIndexPath:nextIndexPath];
   
-  return !(cellAttributes.frame.origin.y == nextCellAttributes.frame.origin.y);
+  return nil != cellAttributes && (nil == nextCellAttributes || !(cellAttributes.frame.origin.y == nextCellAttributes.frame.origin.y));
 }
 
 - (BOOL)indexPathFirstInLine:(NSIndexPath *)indexPath

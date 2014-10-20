@@ -9,6 +9,7 @@
 #import <UIKit/UIKit.h>
 
 typedef NS_ENUM(NSUInteger, DMTableSideType) {
+  kDMTableBorderNone = 0x0000,
   kDMTableBorderTop = 0x0001,
   kDMTableBorderRight = 0x0002,
   kDMTableBorderBottom = 0x0004,
